@@ -1,0 +1,5 @@
+To compile : 
+	make	
+
+To execute : 
+	mpiexec --machinefile ./machinefile -n 1 ./projet	
