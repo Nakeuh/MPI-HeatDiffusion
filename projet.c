@@ -2,10 +2,13 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <unistd.h>
+#include <string.h>
+#include <math.h>
 
-double* initializeGrid(int nbLine , int nbCol);
-void drawGrid(double* grid, int nbLine , int nbCol);
-double* computeGrid(double* grid, int nbLine , int nbCol, double dt, double dx);
+double* initializeGrid(int nbRow , int nbCol);
+void drawGrid(double* grid, int nbRow , int nbCol);
+double* computeGridSeq(double* grid, int nbRow , int nbCol, double dt, double dx);
+double* computeGridPara(double* grid, int nbRow , int nbCol, double dt, double dx,int rang, int nbProcess);
 
 /* Request 1D grid from 2D coordinates */
 #define GRID(tab,i,j)  tab[j*nbCol+i]
@@ -23,74 +26,59 @@ double* computeGrid(double* grid, int nbLine , int nbCol, double dt, double dx);
 
 int main (int argc, char** argv){
   int rang,nbProcess;
-  int nbLine = 20, nbCol=20;
+  int nbRow = 10, nbCol=10;
   double* globalGrid;
   double dt=0.001, dx=2*1/(double)nbCol;
+  int speed = 100; // facteur par lequel diviser le temps de diffusion (ouai, si on augmente speed c'est plus lent, c'est logique)
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank( MPI_COMM_WORLD, &rang);
   MPI_Comm_size( MPI_COMM_WORLD, &nbProcess);
 
-  //int nbLinePerProcess = nbLine/nbProcess;
-
   if(rang==0){
     printf("%d :: Initialize Grid\n",rang);
-    //printf("%d :: Nb line per process %d\n",rang, nbLinePerProcess);
 
-    globalGrid=initializeGrid(nbLine,nbCol);
-    drawGrid(globalGrid,nbLine,nbCol);
+    globalGrid=initializeGrid(nbRow,nbCol);
+    drawGrid(globalGrid,nbRow,nbCol);
+  }
 
-    int i;
-    for(i=0;i<500;i++){
-      printf("\n");
-      printf("%d :: Compute Grid %d\n",rang,i);
+  int i;
+  for(i=0;i<500;i++){
 
-      globalGrid=computeGrid(globalGrid,nbLine,nbCol,dt,dx);
-      system("clear");
-      drawGrid(globalGrid,nbLine,nbCol);
-      usleep(10000*10);
+    /*if(rang==0){
+      globalGrid=computeGridSeq(globalGrid,nbRow,nbCol,dt,dx);
+    }*/
+
+    globalGrid=computeGridPara(globalGrid,nbRow,nbCol,dt,dx,rang,nbProcess);
+
+    if(rang==0){
+      drawGrid(globalGrid,nbRow,nbCol);
+      usleep(dt*pow(10,6)*speed);
     }
   }
+
+
   MPI_Finalize();
 
   return EXIT_SUCCESS;
 }
 
 double* initializeGrid(int nbRow , int nbCol){
-  // X, Y , Temperature
-  //int heatPoint1[] = {3,0,50};
-
-  // Interesting with a 3x3 grid
-/*  int heatPoint1[] = {0,0,100};
-  int heatPoint2[] = {1,0,200};
-  int heatPoint3[] = {2,0,300};
-  int heatPoint4[] = {0,1,400};
-  int heatPoint5[] = {1,1,500};
-  int heatPoint6[] = {2,1,600};
-  int heatPoint7[] = {0,2,700};
-  int heatPoint8[] = {1,2,800};
-  int heatPoint9[] = {2,2,900};*/
 
   int heatPoint1[] = {1,2,8000};
-  int heatPoint2[] = {18,19,15000};
+  int heatPoint2[] = {8,7,15000};
 
   double* grid = (double*)calloc(nbRow*nbCol,sizeof(double));
 
   GRID(grid,heatPoint1[0],heatPoint1[1])= heatPoint1[2];
   GRID(grid,heatPoint2[0],heatPoint2[1])= heatPoint2[2];
-  /*GRID(grid,heatPoint3[0],heatPoint3[1])= heatPoint3[2];
-  GRID(grid,heatPoint4[0],heatPoint4[1])= heatPoint4[2];
-  GRID(grid,heatPoint5[0],heatPoint5[1])= heatPoint5[2];
-  GRID(grid,heatPoint6[0],heatPoint6[1])= heatPoint6[2];
-  GRID(grid,heatPoint7[0],heatPoint7[1])= heatPoint7[2];
-  GRID(grid,heatPoint8[0],heatPoint8[1])= heatPoint8[2];
-  GRID(grid,heatPoint9[0],heatPoint9[1])= heatPoint9[2];
-*/
+
   return grid;
 }
 
 void drawGrid(double* grid, int nbRow , int nbCol){
   int col,row;
+  system("clear");
   for(row=0; row<nbRow;row++){
     for(col=0; col<nbCol; col++){
       printf("%6.0f", GRID(grid,col,row));
@@ -99,12 +87,10 @@ void drawGrid(double* grid, int nbRow , int nbCol){
   }
 }
 
-double* computeGrid(double* grid, int nbRow , int nbCol, double dt, double dx){
-  double *tmp = malloc(nbRow*nbCol*sizeof(double));
+double* computeGridSeq(double* grid, int nbRow , int nbCol, double dt, double dx){
+  double *newGrid = malloc(nbRow*nbCol*sizeof(double));
   int col,row;
   for(row=0; row<nbRow;row++){
-    printf("Line %d\n",row);
-
     for(col=0; col<nbCol; col++){
       double sumNeigbours = 0;
       int numberNeighbours=0;
@@ -128,9 +114,59 @@ double* computeGrid(double* grid, int nbRow , int nbCol, double dt, double dx){
       }
 
       //+ LEFTUP(grid,col,row) + RIGHTUP(grid,col,row) + LEFTDOWN(grid,col,row) + RIGHTDOWN(grid,col,row)
-      GRID(tmp,col,row) = GRID(grid,col,row) + (dt/dx/dx)* (sumNeigbours-numberNeighbours*GRID(grid,col,row));
+      GRID(newGrid,col,row) = GRID(grid,col,row) + (dt/dx/dx)* (sumNeigbours-numberNeighbours*GRID(grid,col,row));
     }
   }
 
-  return tmp;
+  return newGrid;
+}
+
+double* computeGridPara(double* grid, int nbRow , int nbCol, double dt, double dx, int rang, int nbProcess){
+  int nbRowPerProcess = nbRow/nbProcess; // TODO : not calculate for every iteration and every proc :/
+
+  int tag=0;
+  double *localGrid = malloc((nbRowPerProcess+2)*nbCol*sizeof(double));
+  double *newGrid = malloc(nbRow*nbCol*sizeof(double));
+
+  // Scatter
+  if(rang==0){
+    // Garde le premier bloc sur le process 0
+    memcpy(localGrid,grid,(nbRowPerProcess+1)*nbCol*sizeof(double)) ;
+
+    // Envoie les blocs 1 à nbProcess-1
+    int process;
+    for(process=1;process<=nbProcess-1;process++){
+      if(process!=nbProcess-1){
+        MPI_Send(grid+(process*nbRowPerProcess*nbCol -nbCol),(nbRowPerProcess+2)*nbCol, MPI_DOUBLE, process, tag, MPI_COMM_WORLD);
+      }else{
+        MPI_Send(grid+(process*nbRowPerProcess*nbCol -nbCol),(nbRowPerProcess+1)*nbCol, MPI_DOUBLE, process, tag, MPI_COMM_WORLD);
+      }
+    }
+
+  }else{
+    if(rang!=nbProcess-1){
+      MPI_Recv(localGrid, (nbRowPerProcess+2)*nbCol, MPI_DOUBLE, 0, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }else{
+      MPI_Recv(localGrid, (nbRowPerProcess+1)*nbCol, MPI_DOUBLE, 0, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+  }
+
+  // Compute
+  if(rang==0||rang==nbProcess-1){
+    localGrid=computeGridSeq(localGrid,nbRowPerProcess+1,nbCol,dt,dx);
+  }else{
+    localGrid=computeGridSeq(localGrid,nbRowPerProcess+2,nbCol,dt,dx);
+  }
+  // Gather
+
+  double* localGridNoGhostZone = malloc(nbRowPerProcess*nbCol*sizeof(double));
+  if(rang==0){
+    memcpy(localGridNoGhostZone,localGrid,nbRowPerProcess*nbCol*sizeof(double));
+  }else{
+    memcpy(localGridNoGhostZone,localGrid+nbCol,nbRowPerProcess*nbCol*sizeof(double));
+  }
+
+  MPI_Gather(localGridNoGhostZone ,nbRowPerProcess*nbCol ,MPI_DOUBLE,newGrid ,nbRowPerProcess*nbCol ,MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  return newGrid;
 }
