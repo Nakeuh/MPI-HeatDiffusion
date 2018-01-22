@@ -27,10 +27,10 @@ int getNbRowPerProcess(int nbRow, int nbProcess, int rang);
 
 int main (int argc, char** argv){
   int rang, nbProcess;
-  int nbRow = 30, nbCol = 30;
+  int nbRow = 30, nbCol = 20;
   double* globalGrid;
   double dt = 0.001, dx = 2*1/(double)nbCol;
-  int speed = 1000; // facteur par lequel diviser le temps de diffusion (ouai, si on augmente speed c'est plus lent, c'est logique)
+  int speed = 100; // facteur par lequel diviser le temps de diffusion (ouai, si on augmente speed c'est plus lent, c'est logique)
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rang);
@@ -44,7 +44,7 @@ int main (int argc, char** argv){
   }
 
   int i;
-  for(i = 0 ; i < 500 ; i++){
+  for(i = 0 ; i < 1000 ; i++){
 
     /*if(rang==0){
       globalGrid=computeGridSeq(globalGrid,nbRow,nbCol,dt,dx);
@@ -147,7 +147,7 @@ double* computeGridPara(double* grid, int nbRow , int nbCol, double dt, double d
         MPI_Send(grid + (process * nbRowPerProcess * nbCol - nbCol), (nbRowPerProcess+2) * nbCol, MPI_DOUBLE, process, tag, MPI_COMM_WORLD);
       }
       else{
-        MPI_Send(grid+(process*nbRowPerProcess*nbCol - nbCol), (nbRowPerProcess+1)*nbCol, MPI_DOUBLE, process, tag, MPI_COMM_WORLD);
+        MPI_Send(grid+(process*nbRowPerProcess*nbCol - nbCol), (nbRowLastBlock+1)*nbCol, MPI_DOUBLE, process, tag, MPI_COMM_WORLD);
       }
     }
   }
@@ -183,7 +183,7 @@ double* computeGridPara(double* grid, int nbRow , int nbCol, double dt, double d
   }
   else{
     memcpy(localGridNoGhostZone, localGrid+nbCol, nbRowPerProcess*nbCol*sizeof(double));
-    MPI_Send(localGridNoGhostZone, (nbRowPerProcess)*nbCol, MPI_DOUBLE, process, tag, MPI_COMM_WORLD);
+    MPI_Send(localGridNoGhostZone, (nbRowPerProcess)*nbCol, MPI_DOUBLE, 0, tag, MPI_COMM_WORLD);
   }
 
   // MPI_Gather(localGridNoGhostZone, nbRowPerProcess*nbCol, MPI_DOUBLE, newGrid, nbRowPerProcess*nbCol, MPI_DOUBLE, 0, MPI_COMM_WORLD);
