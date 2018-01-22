@@ -25,6 +25,8 @@ int getNbRowPerProcess(int nbRow, int nbProcess, int rang);
 // #define LEFTDOWN(tab,i,j)  ((i>0) && (j<nbRow-1) ? GRID(tab,(i-1),(j+1)) : 0)
 // #define RIGHTDOWN(tab,i,j)  ((i<nbCol-1) && (j<nbRow-1) ? GRID(tab,(i+1),(j+1)) : 0)
 
+static double WALLVALUE = -3.1415;
+
 int main (int argc, char** argv){
   int rang, nbProcess;
   int nbRow = 30, nbCol = 20;
@@ -44,7 +46,7 @@ int main (int argc, char** argv){
   }
 
   int i;
-  for(i = 0 ; i < 1000 ; i++){
+  for(i = 0 ; i < 10000 ; i++){
 
     /*if(rang==0){
       globalGrid=computeGridSeq(globalGrid,nbRow,nbCol,dt,dx);
@@ -68,13 +70,32 @@ int main (int argc, char** argv){
 
 double* initializeGrid(int nbRow , int nbCol){
 
-  int heatPoint1[] = {1, 2, 8000};
-  int heatPoint2[] = {8, 7, 15000};
+  double heatPoint1[] = {8, 3, 8000};
+  double heatPoint2[] = {18, 29, -100};
+
+  double wallPoint1[]={5,5,WALLVALUE};
+  double wallPoint2[]={6,5,WALLVALUE};
+  double wallPoint3[]={7,5,WALLVALUE};
+  double wallPoint5[]={8,5,WALLVALUE};
+  double wallPoint6[]={9,5,WALLVALUE};
+  double wallPoint7[]={10,5,WALLVALUE};
+  double wallPoint8[]={11,5,WALLVALUE};
+  double wallPoint4[]={12,5,WALLVALUE};
+
+
 
   double* grid = (double*) calloc(nbRow*nbCol, sizeof(double));
 
-  GRID(grid, heatPoint1[0], heatPoint1[1]) = heatPoint1[2];
-  GRID(grid, heatPoint2[0], heatPoint2[1]) = heatPoint2[2];
+  GRID(grid, (int)heatPoint1[0], (int)heatPoint1[1]) = heatPoint1[2];
+  GRID(grid, (int)heatPoint2[0], (int)heatPoint2[1]) = heatPoint2[2];
+  GRID(grid, (int)wallPoint1[0], (int)wallPoint1[1]) = wallPoint1[2];
+  GRID(grid, (int)wallPoint2[0], (int)wallPoint2[1]) = wallPoint2[2];
+  GRID(grid, (int)wallPoint3[0], (int)wallPoint3[1]) = wallPoint3[2];
+  GRID(grid, (int)wallPoint4[0], (int)wallPoint4[1]) = wallPoint4[2];
+  GRID(grid, (int)wallPoint5[0], (int)wallPoint5[1]) = wallPoint5[2];
+  GRID(grid, (int)wallPoint6[0], (int)wallPoint6[1]) = wallPoint6[2];
+  GRID(grid, (int)wallPoint7[0], (int)wallPoint7[1]) = wallPoint7[2];
+  GRID(grid, (int)wallPoint8[0], (int)wallPoint8[1]) = wallPoint8[2];
 
   return grid;
 }
@@ -86,7 +107,13 @@ void drawGrid(double* grid, int nbRow , int nbCol){
 
   for(row = 0 ; row < nbRow ; row++){
     for(col = 0 ; col < nbCol ; col++){
-      printf("%6.0f", GRID(grid, col, row));
+      if((int)GRID(grid,col,row)==0){
+        printf("      ");
+      }else if(GRID(grid,col,row)==WALLVALUE){
+        printf("++++++");
+      }else{
+        printf("%6.0f", GRID(grid, col, row));
+      }
     }
 
     printf("\n");
@@ -99,30 +126,41 @@ double* computeGridSeq(double* grid, int nbRow , int nbCol, double dt, double dx
 
   for(row = 0 ; row < nbRow ; row++){
     for(col = 0 ; col < nbCol ; col++){
+      if(GRID(grid,col,row)!=WALLVALUE){
+        double sumNeigbours = 0;
+        int numberNeighbours=0;
 
-      double sumNeigbours = 0;
-      int numberNeighbours=0;
+        // Tests pour les cas aux limites de la grille
+        if(row > 0) {
+          if(UP(grid,col,row)!=WALLVALUE){
+            sumNeigbours += UP(grid, col, row);
+            numberNeighbours++;
+          }
+        }
+        if(row < nbRow - 1) {
+          if(DOWN(grid,col,row)!=WALLVALUE){
+            sumNeigbours += DOWN(grid, col, row);
+            numberNeighbours++;
+          }
+        }
+        if(col > 0) {
+          if(LEFT(grid,col,row)!=WALLVALUE){
+            sumNeigbours += LEFT(grid, col, row);
+            numberNeighbours++;
+          }
+        }
+        if(col < nbCol - 1) {
+          if(RIGHT(grid,col,row)!=WALLVALUE){
+            sumNeigbours += RIGHT(grid, col, row);
+            numberNeighbours++;
+          }
+        }
 
-      // Tests pour les cas aux limites de la grille
-      if(row > 0) {
-        sumNeigbours += UP(grid, col, row);
-        numberNeighbours++;
+        //+ LEFTUP(grid,col,row) + RIGHTUP(grid,col,row) + LEFTDOWN(grid,col,row) + RIGHTDOWN(grid,col,row)
+        GRID(newGrid, col, row) = GRID(grid, col, row) + (dt/dx/dx) * (sumNeigbours - numberNeighbours * GRID(grid, col,row));
+      }else{
+        GRID(newGrid, col, row) = GRID(grid, col, row);
       }
-      if(row < nbRow - 1) {
-        sumNeigbours += DOWN(grid, col, row);
-        numberNeighbours++;
-      }
-      if(col > 0) {
-        sumNeigbours += LEFT(grid, col, row);
-        numberNeighbours++;
-      }
-      if(col < nbCol - 1) {
-        sumNeigbours += RIGHT(grid, col, row);
-        numberNeighbours++;
-      }
-
-      //+ LEFTUP(grid,col,row) + RIGHTUP(grid,col,row) + LEFTDOWN(grid,col,row) + RIGHTDOWN(grid,col,row)
-      GRID(newGrid, col, row) = GRID(grid, col, row) + (dt/dx/dx) * (sumNeigbours - numberNeighbours * GRID(grid, col,row));
     }
   }
 
