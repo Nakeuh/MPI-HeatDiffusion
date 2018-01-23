@@ -32,7 +32,7 @@ int main (int argc, char** argv){
   int nbRow = 30, nbCol = 20;
   double* globalGrid;
   double dt = 0.001, dx = 2*1/(double)nbCol;
-  int speed = 100; // facteur par lequel diviser le temps de diffusion (ouai, si on augmente speed c'est plus lent, c'est logique)
+  int speed = 10; // facteur par lequel diviser le temps de diffusion (ouai, si on augmente speed c'est plus lent, c'est logique)
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rang);
@@ -81,21 +81,29 @@ double* initializeGrid(int nbRow , int nbCol){
   double wallPoint7[]={10,5,WALLVALUE};
   double wallPoint8[]={11,5,WALLVALUE};
   double wallPoint4[]={12,5,WALLVALUE};
-
+  double wallPoint9[]={5,6,WALLVALUE};
+  double wallPoint10[]={5,7,WALLVALUE};
+  double wallPoint11[]={12,6,WALLVALUE};
+  double wallPoint12[]={12,7,WALLVALUE};
 
 
   double* grid = (double*) calloc(nbRow*nbCol, sizeof(double));
 
   GRID(grid, (int)heatPoint1[0], (int)heatPoint1[1]) = heatPoint1[2];
   GRID(grid, (int)heatPoint2[0], (int)heatPoint2[1]) = heatPoint2[2];
+
   GRID(grid, (int)wallPoint1[0], (int)wallPoint1[1]) = wallPoint1[2];
   GRID(grid, (int)wallPoint2[0], (int)wallPoint2[1]) = wallPoint2[2];
   GRID(grid, (int)wallPoint3[0], (int)wallPoint3[1]) = wallPoint3[2];
   GRID(grid, (int)wallPoint4[0], (int)wallPoint4[1]) = wallPoint4[2];
-  GRID(grid, (int)wallPoint5[0], (int)wallPoint5[1]) = wallPoint5[2];
+//  GRID(grid, (int)wallPoint5[0], (int)wallPoint5[1]) = wallPoint5[2];
   GRID(grid, (int)wallPoint6[0], (int)wallPoint6[1]) = wallPoint6[2];
   GRID(grid, (int)wallPoint7[0], (int)wallPoint7[1]) = wallPoint7[2];
   GRID(grid, (int)wallPoint8[0], (int)wallPoint8[1]) = wallPoint8[2];
+  GRID(grid, (int)wallPoint9[0], (int)wallPoint9[1]) = wallPoint9[2];
+  GRID(grid, (int)wallPoint10[0], (int)wallPoint10[1]) = wallPoint10[2];
+  GRID(grid, (int)wallPoint11[0], (int)wallPoint11[1]) = wallPoint11[2];
+  GRID(grid, (int)wallPoint12[0], (int)wallPoint12[1]) = wallPoint12[2];
 
   return grid;
 }
@@ -157,7 +165,7 @@ double* computeGridSeq(double* grid, int nbRow , int nbCol, double dt, double dx
         }
 
         //+ LEFTUP(grid,col,row) + RIGHTUP(grid,col,row) + LEFTDOWN(grid,col,row) + RIGHTDOWN(grid,col,row)
-        GRID(newGrid, col, row) = GRID(grid, col, row) + (dt/dx/dx) * (sumNeigbours - numberNeighbours * GRID(grid, col,row));
+        GRID(newGrid, col, row) = GRID(grid, col, row) + (dt/dx) * (sumNeigbours - numberNeighbours * GRID(grid, col,row));
       }else{
         GRID(newGrid, col, row) = GRID(grid, col, row);
       }
